@@ -4,6 +4,7 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 
 import javax.persistence.*;
+import javax.validation.constraints.*;
 
 @Data
 @RequiredArgsConstructor
@@ -12,14 +13,26 @@ import javax.persistence.*;
 public class Product {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int id;
-    @Column(name = "name", length = 128)
+    private Long id;
+
+    @NotBlank
+    @Min(2)
     private String name;
-    @Column(name = "description", length = 128)
+
+    @NotBlank
+    private String category;
+
+    @NotBlank
     private String description;
-    @Column(name = "price")
-    private int price;
-    @Column(name = "image", length = 128)
+
+    @Positive
+    private Integer price;
+
+    @NotBlank
+    @Size(min = 1, max = 128)
     private String image;
+
+
+
 
 }

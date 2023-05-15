@@ -1,31 +1,60 @@
 package com.example.labawork.controllers;
-
-import com.example.labawork.entities.Product;
+import com.example.labawork.dto.ProductDto;
+import com.example.labawork.exception.ResourceNotFoundException;
 import com.example.labawork.services.ProductService;
+import com.example.labawork.services.PropertiesService;
+import com.example.labawork.utils.PageUtil;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.*;
 
-@RestController
+import javax.servlet.http.HttpServletRequest;
+
+import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
+
+@Controller
 @AllArgsConstructor
-@RequestMapping("/products")
 public class ProductController {
     private final ProductService productService;
-    @GetMapping("/findByName/{name}")
-    public ResponseEntity <Page<Product>> findByName(@PathVariable String name) {
-        return new ResponseEntity<>(productService.getByName(name), HttpStatus.OK);
+    private final PropertiesService propertiesService;
+
+
+@GetMapping
+    public String productList(Model model, Pageable pageable, HttpServletRequest uriBuilder) {
+        var products = productService.getProducts(pageable);
+        String uri = uriBuilder.getRequestURI();
+        PageUtil.constructPageable(products, propertiesService.getDefaultPageSize(), model, uri);
+        return "products";
     }
-    @GetMapping("/findByPrice/{price}")
-    public ResponseEntity <Page<Product>> findByPrice(@PathVariable int price) {
-        return new ResponseEntity<>(productService.getByPrice(price), HttpStatus.OK);
+    @GetMapping("{id}")
+    public String productById(@PathVariable Long id, Model model) {
+        model.addAttribute("product", productService.getProductById(id));
+        return "product";
     }
-    @GetMapping("/findByDescription/{description}")
-    public ResponseEntity <Page<Product>> findByDescription(@PathVariable String description) {
-        return new ResponseEntity<>(productService.getByDescription(description), HttpStatus.OK);
+
+    @GetMapping("/search")
+    public String search(@RequestParam(value = "searchBy", required = false) String type,
+                         @RequestParam(value = "search", required = false) String value,
+                         Model model, Pageable pageable, HttpServletRequest uriBuilder) {
+        if (value == null || productService.search(type, value, pageable).getContent().isEmpty()) {
+            throw new ResourceNotFoundException(value);
+        }
+        Page<ProductDto> products = productService.search(type, value, pageable);
+        String uri = uriBuilder.getRequestURI();
+        PageUtil.constructPageable(products, propertiesService.getDefaultPageSize(), model, uri + "?" + "searchBy=" + type +
+                "&" + "search=" + value);
+
+        return "productBySearch";
+    }
+
+    @ExceptionHandler(NumberFormatException.class)
+    @ResponseStatus(INTERNAL_SERVER_ERROR)
+    public ResponseEntity<String> handleNotFoundException() {
+        return new ResponseEntity<>("Неверный формат", HttpStatus.OK);
     }
 }
